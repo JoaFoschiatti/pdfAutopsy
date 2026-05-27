@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Sidebar } from "./components/Sidebar";
 import { SelectionPopover } from "./components/SelectionPopover";
 import { SettingsDialog } from "./components/SettingsDialog";
@@ -44,6 +44,7 @@ const SIDEBAR_COLLAPSED_KEY = "estudio-pdf-sidebar-collapsed-v1";
 const STUDY_PANEL_COLLAPSED_KEY = "estudio-pdf-study-panel-collapsed-v1";
 const THEME_KEY = "pdf-autopsy-theme-v1";
 const DEFAULT_SCALE = 1.5;
+const PDF_PAGE_WIDTH_AT_SCALE_ONE = 612;
 type ThemeMode = "light" | "dark";
 
 function nowIso() {
@@ -55,6 +56,19 @@ function createId(prefix: string) {
 }
 
 function getResponsiveScale() {
+  if (typeof window === "undefined") return DEFAULT_SCALE;
+
+  const width = window.innerWidth;
+  if (width < 620) {
+    const availableWidth = Math.max(320, width - 28);
+    return Number(Math.min(0.75, Math.max(0.56, availableWidth / PDF_PAGE_WIDTH_AT_SCALE_ONE)).toFixed(2));
+  }
+  if (width < 700) return 0.88;
+  if (width < 900) return 0.92;
+  if (width < 1280) return 1.25;
+  if (width < 1500) return 1.05;
+  if (width < 1700) return 1.25;
+
   return DEFAULT_SCALE;
 }
 
@@ -151,6 +165,11 @@ export default function App() {
   const [theme, setTheme] = useState<ThemeMode>(() => readStoredTheme());
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
+  const applyViewerFullscreenState = useCallback((nextFullscreen: boolean) => {
+    setIsViewerFullscreen(nextFullscreen);
+    if (!nextFullscreen) setIsFullscreenStudyVisible(false);
+  }, []);
+
   useEffect(() => {
     let mounted = true;
 
@@ -179,6 +198,29 @@ export default function App() {
       void handleNativeOpenPdf();
     });
   }, []);
+
+  useEffect(() => {
+    const nativeWindow = window.estudioPdf;
+    if (!nativeWindow?.onNativeFullscreenChange) return;
+
+    let disposed = false;
+
+    const currentFullscreen = nativeWindow.getNativeFullscreen?.();
+    currentFullscreen
+      ?.then((fullscreen) => {
+        if (!disposed) applyViewerFullscreenState(fullscreen);
+      })
+      .catch((error) => console.error("No se pudo leer el estado de pantalla completa", error));
+
+    const unsubscribe = nativeWindow.onNativeFullscreenChange((fullscreen) => {
+      applyViewerFullscreenState(fullscreen);
+    });
+
+    return () => {
+      disposed = true;
+      unsubscribe();
+    };
+  }, [applyViewerFullscreenState]);
 
   useEffect(() => {
     if (activeDocument) saveAnnotations(activeDocument.id, annotations);
@@ -365,8 +407,9 @@ export default function App() {
   }
 
   function handleViewerFullscreenChange(nextFullscreen: boolean) {
-    setIsViewerFullscreen(nextFullscreen);
-    if (!nextFullscreen) setIsFullscreenStudyVisible(false);
+    applyViewerFullscreenState(nextFullscreen);
+    const fullscreenRequest = window.estudioPdf?.setNativeFullscreen?.(nextFullscreen);
+    fullscreenRequest?.catch((error) => console.error("No se pudo cambiar el modo pantalla completa", error));
   }
 
   function handleStudyPanelCollapsedToggle() {
@@ -454,8 +497,56 @@ export default function App() {
     setAnnotations((current) => current.filter((annotation) => annotation.id !== id));
   }
 
+  function updateAnnotation(id: string, input: { note: string; color: HighlightColor }) {
+    const note = input.note.trim();
+
+    setAnnotations((current) =>
+      current.map((annotation) =>
+        annotation.id === id
+          ? {
+              ...annotation,
+              type: note ? "note" : "highlight",
+              note: note || undefined,
+              color: input.color,
+              updatedAt: nowIso(),
+            }
+          : annotation,
+      ),
+    );
+  }
+
   function deleteTerm(id: string) {
     setTerms((current) => current.filter((term) => term.id !== id));
+  }
+
+  function updateTerm(id: string, input: { term: string; definition: string; color: HighlightColor }) {
+    const termValue = input.term.trim();
+    const normalized = normalizeTerm(termValue);
+
+    if (!isTrackableNormalizedTerm(normalized)) {
+      return "El termino debe tener al menos 3 caracteres utiles.";
+    }
+
+    if (terms.some((term) => term.id !== id && term.normalized === normalized)) {
+      return "Ya existe un concepto con ese termino.";
+    }
+
+    setTerms((current) =>
+      current.map((term) =>
+        term.id === id
+          ? {
+              ...term,
+              term: termValue,
+              normalized,
+              definition: input.definition.trim(),
+              color: input.color,
+              updatedAt: nowIso(),
+            }
+          : term,
+      ),
+    );
+
+    return null;
   }
 
   function markTermReviewed(id: string, remembered: boolean) {
@@ -624,6 +715,7 @@ export default function App() {
       <StudyPanel
         annotations={annotations}
         terms={terms}
+        customColors={customColors}
         activeTab={activeTab}
         query={query}
         currentPage={currentPage}
@@ -633,6 +725,8 @@ export default function App() {
         onPageJump={handlePageChange}
         onDeleteAnnotation={deleteAnnotation}
         onDeleteTerm={deleteTerm}
+        onUpdateAnnotation={updateAnnotation}
+        onUpdateTerm={updateTerm}
         onToggleFavorite={toggleFavorite}
         onReviewTerm={markTermReviewed}
         onToggleCollapsed={handleStudyPanelCollapsedToggle}

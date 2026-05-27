@@ -65,6 +65,14 @@ function createMainWindow() {
   mainWindow.setMenuBarVisibility(false);
   mainWindow.removeMenu();
 
+  function sendFullscreenState() {
+    if (!mainWindow || mainWindow.isDestroyed()) return;
+    mainWindow.webContents.send("window:fullscreen-changed", mainWindow.isFullScreen());
+  }
+
+  mainWindow.on("enter-full-screen", sendFullscreenState);
+  mainWindow.on("leave-full-screen", sendFullscreenState);
+
   mainWindow.webContents.on("before-input-event", (event, input) => {
     if ((input.control || input.meta) && input.key.toLowerCase() === "o") {
       event.preventDefault();
@@ -73,6 +81,7 @@ function createMainWindow() {
   });
 
   mainWindow.once("ready-to-show", () => {
+    mainWindow.maximize();
     mainWindow.show();
     scheduleAutoUpdateCheck();
   });
@@ -136,6 +145,20 @@ ipcMain.handle("dialog:open-pdf", async () => {
 ipcMain.handle("clipboard:write-text", (_event, text) => {
   clipboard.writeText(String(text ?? ""));
   return true;
+});
+
+ipcMain.handle("window:set-fullscreen", (event, fullscreen) => {
+  const window = BrowserWindow.fromWebContents(event.sender);
+  if (!window || window.isDestroyed()) return false;
+
+  window.setFullScreen(Boolean(fullscreen));
+  return window.isFullScreen();
+});
+
+ipcMain.handle("window:get-fullscreen", (event) => {
+  const window = BrowserWindow.fromWebContents(event.sender);
+  if (!window || window.isDestroyed()) return false;
+  return window.isFullScreen();
 });
 
 app.whenReady().then(() => {

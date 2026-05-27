@@ -39,9 +39,11 @@ export function SelectionPopover({
     }
   }, [mode]);
 
+  const estimatedHeight = mode === "term" ? 282 : mode === "note" ? 236 : 260;
+  const preferredTop = mode === "quick" ? selection.anchor.y + 18 : selection.anchor.y - estimatedHeight - 12;
   const style = {
     left: Math.min(window.innerWidth - 330, Math.max(16, selection.anchor.x - 160)),
-    top: Math.max(74, selection.anchor.y + 18),
+    top: Math.max(12, Math.min(window.innerHeight - estimatedHeight - 12, Math.max(74, preferredTop))),
   };
 
   return (

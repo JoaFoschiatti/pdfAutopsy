@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu, dialog, ipcMain, shell } = require("electron");
+const { app, BrowserWindow, Menu, clipboard, dialog, ipcMain, shell } = require("electron");
 const { autoUpdater } = require("electron-updater");
 const fs = require("node:fs/promises");
 const path = require("node:path");
@@ -131,6 +131,11 @@ ipcMain.handle("dialog:open-pdf", async () => {
     lastModified: stats.mtimeMs,
     data: arrayBuffer,
   };
+});
+
+ipcMain.handle("clipboard:write-text", (_event, text) => {
+  clipboard.writeText(String(text ?? ""));
+  return true;
 });
 
 app.whenReady().then(() => {

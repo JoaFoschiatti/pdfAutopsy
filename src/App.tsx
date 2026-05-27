@@ -74,6 +74,39 @@ function readStoredTheme(): ThemeMode {
   }
 }
 
+function getCleanSelectionText() {
+  return window.getSelection()?.toString().replace(/\s+/g, " ").trim() ?? "";
+}
+
+async function writeTextToClipboard(text: string) {
+  if (!text) return;
+
+  try {
+    if (window.estudioPdf?.writeClipboardText) {
+      await window.estudioPdf.writeClipboardText(text);
+      return;
+    }
+  } catch {
+    // Fall through to browser clipboard APIs when the native bridge is unavailable.
+  }
+
+  try {
+    await navigator.clipboard.writeText(text);
+    return;
+  } catch {
+    const textarea = document.createElement("textarea");
+    textarea.value = text;
+    textarea.setAttribute("readonly", "true");
+    textarea.style.position = "fixed";
+    textarea.style.left = "-9999px";
+    textarea.style.top = "0";
+    document.body.appendChild(textarea);
+    textarea.select();
+    document.execCommand("copy");
+    textarea.remove();
+  }
+}
+
 export default function App() {
   const uploadInputRef = useRef<HTMLInputElement>(null);
   const [documents, setDocuments] = useState<StoredDocument[]>([]);
@@ -181,6 +214,13 @@ export default function App() {
       if (event.key === "Escape") {
         setSelection(null);
         window.getSelection()?.removeAllRanges();
+      }
+      if ((event.ctrlKey || event.metaKey) && event.key.toLocaleLowerCase() === "c") {
+        const text = getCleanSelectionText();
+        if (text) {
+          event.preventDefault();
+          void writeTextToClipboard(text);
+        }
       }
       if ((event.ctrlKey || event.metaKey) && event.key.toLocaleLowerCase() === "f") {
         event.preventDefault();
@@ -460,6 +500,15 @@ export default function App() {
 
   function handleSelectionDraft(draft: SelectionDraft | null) {
     if (!draft) return;
+
+    if (tool === "select") {
+      setSelection(null);
+      return;
+    }
+
+    if (selection && (tool === "note" || tool === "term")) {
+      return;
+    }
 
     if (tool === "highlight") {
       createAnnotationFromDraft(draft);

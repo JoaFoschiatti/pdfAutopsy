@@ -10,6 +10,7 @@ type NativePdfPayload = {
 interface Window {
   estudioPdf?: {
     openPdfDialog: () => Promise<NativePdfPayload | null>;
+    writeClipboardText: (text: string) => Promise<boolean>;
     onOpenPdfFromMenu: (callback: () => void) => () => void;
   };
 }

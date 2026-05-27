@@ -1,0 +1,88 @@
+{
+  "name": "pdf-autopsy",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Lector de PDF y herramienta de estudio para Windows 11.",
+  "author": "pdfAutopsy",
+  "type": "module",
+  "main": "electron/main.cjs",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "tsc --noEmit && vite build",
+    "icon:win": "node scripts/generate-windows-icon.mjs",
+    "desktop": "npm run build && electron .",
+    "desktop:dir": "npm run icon:win && npm run build && electron-builder --win --x64 --dir",
+    "desktop:pack": "npm run icon:win && npm run build && electron-builder --win --x64",
+    "desktop:publish": "npm run icon:win && npm run build && electron-builder --win --x64 --publish always",
+    "preview": "vite preview --host 127.0.0.1",
+    "demo:pdf": "node scripts/generate-demo-pdf.mjs"
+  },
+  "build": {
+    "appId": "com.pdfautopsy.app",
+    "productName": "pdfAutopsy",
+    "directories": {
+      "output": "release"
+    },
+    "icon": "build/icon.ico",
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "build/icon.ico",
+      "package.json"
+    ],
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "JoaFoschiatti",
+        "repo": "pdfAutopsy",
+        "releaseType": "release"
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "artifactName": "${productName}-Setup-${version}-${arch}.${ext}",
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "pdfAutopsy"
+    },
+    "portable": {
+      "artifactName": "${productName}-Portable-${version}-${arch}.${ext}"
+    }
+  },
+  "dependencies": {
+    "electron-updater": "^6.8.3"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.15",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^5.1.1",
+    "canvas": "^3.2.3",
+    "electron": "^42.3.0",
+    "electron-builder": "^26.8.1",
+    "lucide-react": "^0.468.0",
+    "pdfjs-dist": "4.8.69",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-pdf": "^9.2.1",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.1"
+  }
+}

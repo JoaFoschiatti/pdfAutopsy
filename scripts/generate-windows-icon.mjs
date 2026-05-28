@@ -2,10 +2,10 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { createCanvas, loadImage } from "canvas";
 
-const sourcePath = resolve("build/pdfautopsy-icon.png");
+const sourcePath = resolve("build/mdautopsy-icon.png");
 const pngOutputPath = resolve("build/icon.png");
 const icoOutputPath = resolve("build/icon.ico");
-const faviconOutputPath = resolve("public/pdfautopsy-icon.png");
+const faviconOutputPath = resolve("public/mdautopsy-icon.png");
 const sizes = [16, 24, 32, 48, 64, 128, 256];
 
 function isBorderBackground(r, g, b, a) {

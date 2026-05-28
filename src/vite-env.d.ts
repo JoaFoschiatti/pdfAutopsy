@@ -1,19 +1,19 @@
 /// <reference types="vite/client" />
 
-type NativePdfPayload = {
+type NativeMarkdownPayload = {
   name: string;
   size: number;
   lastModified: number;
-  data: ArrayBuffer;
+  content: string;
 };
 
 interface Window {
-  estudioPdf?: {
-    openPdfDialog: () => Promise<NativePdfPayload | null>;
+  mdAutopsy?: {
+    openMarkdownDialog: () => Promise<NativeMarkdownPayload | null>;
     writeClipboardText: (text: string) => Promise<boolean>;
     setNativeFullscreen: (fullscreen: boolean) => Promise<boolean>;
     getNativeFullscreen: () => Promise<boolean>;
     onNativeFullscreenChange: (callback: (fullscreen: boolean) => void) => () => void;
-    onOpenPdfFromMenu: (callback: () => void) => () => void;
+    onOpenMarkdownFromMenu: (callback: () => void) => () => void;
   };
 }

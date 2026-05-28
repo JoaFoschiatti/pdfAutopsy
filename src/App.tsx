@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Sidebar } from "./components/Sidebar";
+import { MarkdownWorkspace, defaultColor, type ToolMode } from "./components/MarkdownWorkspace";
 import { SelectionPopover } from "./components/SelectionPopover";
 import { SettingsDialog } from "./components/SettingsDialog";
+import { Sidebar } from "./components/Sidebar";
 import { StudyPanel } from "./components/StudyPanel";
-import { ToolOptionsPopover } from "./components/ToolOptionsPopover";
-import { defaultColor, PdfWorkspace, type ToolMode } from "./components/PdfWorkspace";
 import { Toolbar } from "./components/Toolbar";
+import { ToolOptionsPopover } from "./components/ToolOptionsPopover";
 import {
   deleteDocumentForever,
   getDocument,
@@ -24,12 +24,12 @@ import {
   saveReadingProgress,
   saveTerms,
   setDocumentFavorite,
-  upsertDemoDocument,
+  upsertDemoMarkdown,
 } from "./storage";
 import type {
   HighlightColor,
   LibraryView,
-  PdfDocumentRecord,
+  MarkdownDocumentRecord,
   ReadingProgress,
   SelectionDraft,
   StoredDocument,
@@ -38,14 +38,20 @@ import type {
   TermNote,
 } from "./types";
 
-const CUSTOM_COLORS_KEY = "estudio-pdf-custom-colors-v1";
-const ACTIVE_COLOR_KEY = "estudio-pdf-active-color-v1";
-const SIDEBAR_COLLAPSED_KEY = "estudio-pdf-sidebar-collapsed-v1";
-const STUDY_PANEL_COLLAPSED_KEY = "estudio-pdf-study-panel-collapsed-v1";
-const THEME_KEY = "pdf-autopsy-theme-v1";
-const DEFAULT_SCALE = 1.5;
-const PDF_PAGE_WIDTH_AT_SCALE_ONE = 612;
+const CUSTOM_COLORS_KEY = "md-autopsy-custom-colors-v1";
+const ACTIVE_COLOR_KEY = "md-autopsy-active-color-v1";
+const SIDEBAR_COLLAPSED_KEY = "md-autopsy-sidebar-collapsed-v1";
+const STUDY_PANEL_COLLAPSED_KEY = "md-autopsy-study-panel-collapsed-v1";
+const THEME_KEY = "md-autopsy-theme-v1";
+const DEFAULT_SCALE = 1;
 type ThemeMode = "light" | "dark";
+type UndoSnapshot = {
+  label: string;
+  annotations: StudyAnnotation[];
+  terms: TermNote[];
+};
+
+const MAX_UNDO_STACK = 40;
 
 function nowIso() {
   return new Date().toISOString();
@@ -59,22 +65,17 @@ function getResponsiveScale() {
   if (typeof window === "undefined") return DEFAULT_SCALE;
 
   const width = window.innerWidth;
-  if (width < 620) {
-    const availableWidth = Math.max(320, width - 28);
-    return Number(Math.min(0.75, Math.max(0.56, availableWidth / PDF_PAGE_WIDTH_AT_SCALE_ONE)).toFixed(2));
-  }
-  if (width < 700) return 0.88;
-  if (width < 900) return 0.92;
-  if (width < 1280) return 1.25;
-  if (width < 1500) return 1.05;
-  if (width < 1700) return 1.25;
-
+  if (width < 520) return 0.88;
+  if (width < 900) return 0.94;
+  if (width > 1700) return 1.06;
   return DEFAULT_SCALE;
 }
 
 function readStoredBoolean(key: string, fallback = false) {
   try {
-    return localStorage.getItem(key) === "true" || fallback;
+    const stored = localStorage.getItem(key);
+    if (stored === null) return fallback;
+    return stored === "true";
   } catch {
     return fallback;
   }
@@ -92,12 +93,31 @@ function getCleanSelectionText() {
   return window.getSelection()?.toString().replace(/\s+/g, " ").trim() ?? "";
 }
 
+function isEditableTarget(target: EventTarget | null) {
+  if (!(target instanceof HTMLElement)) return false;
+  return Boolean(target.closest("input, textarea, select, [contenteditable='true'], [contenteditable='']"));
+}
+
+function cloneAnnotations(annotations: StudyAnnotation[]) {
+  return annotations.map((annotation) => ({
+    ...annotation,
+    anchor: { ...annotation.anchor },
+  }));
+}
+
+function cloneTerms(terms: TermNote[]) {
+  return terms.map((term) => ({
+    ...term,
+    review: term.review ? { ...term.review } : undefined,
+  }));
+}
+
 async function writeTextToClipboard(text: string) {
   if (!text) return;
 
   try {
-    if (window.estudioPdf?.writeClipboardText) {
-      await window.estudioPdf.writeClipboardText(text);
+    if (window.mdAutopsy?.writeClipboardText) {
+      await window.mdAutopsy.writeClipboardText(text);
       return;
     }
   } catch {
@@ -124,13 +144,13 @@ async function writeTextToClipboard(text: string) {
 export default function App() {
   const uploadInputRef = useRef<HTMLInputElement>(null);
   const [documents, setDocuments] = useState<StoredDocument[]>([]);
-  const [activeDocument, setActiveDocument] = useState<PdfDocumentRecord | null>(null);
-  const [pdfData, setPdfData] = useState<ArrayBuffer | null>(null);
+  const [activeDocument, setActiveDocument] = useState<MarkdownDocumentRecord | null>(null);
+  const [markdownContent, setMarkdownContent] = useState<string | null>(null);
   const [annotations, setAnnotations] = useState<StudyAnnotation[]>([]);
   const [terms, setTerms] = useState<TermNote[]>([]);
   const [readingProgress, setReadingProgress] = useState<ReadingProgress | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [numPages, setNumPages] = useState(1);
+  const [sectionCount, setSectionCount] = useState(1);
   const [scale, setScale] = useState(() => getResponsiveScale());
   const [manualScale, setManualScale] = useState(false);
   const [tool, setTool] = useState<ToolMode>("select");
@@ -153,6 +173,12 @@ export default function App() {
     anchor: { x: number; y: number };
   } | null>(null);
   const [selection, setSelection] = useState<SelectionDraft | null>(null);
+  const selectionRef = useRef<SelectionDraft | null>(null);
+  const lastProgressStateUpdateRef = useRef({ page: 0, timestamp: 0 });
+  const annotationsRef = useRef<StudyAnnotation[]>([]);
+  const termsRef = useRef<TermNote[]>([]);
+  const undoStackRef = useRef<UndoSnapshot[]>([]);
+  const [undoStack, setUndoStack] = useState<UndoSnapshot[]>([]);
   const [activeTab, setActiveTab] = useState<StudyTab>("annotations");
   const [query, setQuery] = useState("");
   const [libraryView, setLibraryView] = useState<LibraryView>("all");
@@ -170,11 +196,45 @@ export default function App() {
     if (!nextFullscreen) setIsFullscreenStudyVisible(false);
   }, []);
 
+  function replaceUndoStack(nextStack: UndoSnapshot[]) {
+    undoStackRef.current = nextStack;
+    setUndoStack(nextStack);
+  }
+
+  function pushUndo(label: string) {
+    const snapshot: UndoSnapshot = {
+      label,
+      annotations: cloneAnnotations(annotationsRef.current),
+      terms: cloneTerms(termsRef.current),
+    };
+    replaceUndoStack([...undoStackRef.current, snapshot].slice(-MAX_UNDO_STACK));
+  }
+
+  function clearUndoStack() {
+    replaceUndoStack([]);
+  }
+
+  function undoLastAction() {
+    const snapshot = undoStackRef.current[undoStackRef.current.length - 1];
+    if (!snapshot) return;
+
+    const nextStack = undoStackRef.current.slice(0, -1);
+    const nextAnnotations = cloneAnnotations(snapshot.annotations);
+    const nextTerms = cloneTerms(snapshot.terms);
+
+    annotationsRef.current = nextAnnotations;
+    termsRef.current = nextTerms;
+    setAnnotations(nextAnnotations);
+    setTerms(nextTerms);
+    replaceUndoStack(nextStack);
+    clearSelection();
+  }
+
   useEffect(() => {
     let mounted = true;
 
     async function bootstrap() {
-      await upsertDemoDocument();
+      await upsertDemoMarkdown();
       const stored = await listDocuments({ includeDeleted: true });
       if (!mounted) return;
       setDocuments(stored);
@@ -194,13 +254,13 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    return window.estudioPdf?.onOpenPdfFromMenu(() => {
-      void handleNativeOpenPdf();
+    return window.mdAutopsy?.onOpenMarkdownFromMenu(() => {
+      void handleNativeOpenMarkdown();
     });
   }, []);
 
   useEffect(() => {
-    const nativeWindow = window.estudioPdf;
+    const nativeWindow = window.mdAutopsy;
     if (!nativeWindow?.onNativeFullscreenChange) return;
 
     let disposed = false;
@@ -224,10 +284,12 @@ export default function App() {
 
   useEffect(() => {
     if (activeDocument) saveAnnotations(activeDocument.id, annotations);
+    annotationsRef.current = annotations;
   }, [activeDocument, annotations]);
 
   useEffect(() => {
     if (activeDocument) saveTerms(activeDocument.id, terms);
+    termsRef.current = terms;
   }, [activeDocument, terms]);
 
   useEffect(() => {
@@ -254,8 +316,7 @@ export default function App() {
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
-        setSelection(null);
-        window.getSelection()?.removeAllRanges();
+        clearSelection();
       }
       if ((event.ctrlKey || event.metaKey) && event.key.toLocaleLowerCase() === "c") {
         const text = getCleanSelectionText();
@@ -263,6 +324,11 @@ export default function App() {
           event.preventDefault();
           void writeTextToClipboard(text);
         }
+      }
+      if ((event.ctrlKey || event.metaKey) && !event.shiftKey && event.key.toLocaleLowerCase() === "z") {
+        if (isEditableTarget(event.target)) return;
+        event.preventDefault();
+        undoLastAction();
       }
       if ((event.ctrlKey || event.metaKey) && event.key.toLocaleLowerCase() === "f") {
         event.preventDefault();
@@ -285,30 +351,39 @@ export default function App() {
     return () => window.removeEventListener("resize", handleResize);
   }, [manualScale]);
 
-  function openRecord(record: PdfDocumentRecord) {
+  function openRecord(record: MarkdownDocumentRecord) {
     const progress = loadReadingProgress(record.id);
     setActiveDocument(record);
-    setPdfData(record.data);
-    setAnnotations(loadAnnotations(record.id));
-    setTerms(loadTerms(record.id));
+    setMarkdownContent(record.content);
+    const nextAnnotations = loadAnnotations(record.id);
+    const nextTerms = loadTerms(record.id);
+    annotationsRef.current = nextAnnotations;
+    termsRef.current = nextTerms;
+    setAnnotations(nextAnnotations);
+    setTerms(nextTerms);
     setReadingProgress(progress);
     setCurrentPage(progress?.page ?? 1);
+    lastProgressStateUpdateRef.current = { page: progress?.page ?? 1, timestamp: performance.now() };
     setManualScale(false);
     setScale(getResponsiveScale());
-    setSelection(null);
+    clearSelection();
     setQuery("");
+    clearUndoStack();
   }
 
   function clearActiveDocument() {
     setActiveDocument(null);
-    setPdfData(null);
+    setMarkdownContent(null);
+    annotationsRef.current = [];
+    termsRef.current = [];
     setAnnotations([]);
     setTerms([]);
     setReadingProgress(null);
     setCurrentPage(1);
-    setNumPages(1);
-    setSelection(null);
+    setSectionCount(1);
+    clearSelection();
     setQuery("");
+    clearUndoStack();
   }
 
   async function refreshDocuments() {
@@ -361,7 +436,9 @@ export default function App() {
   }
 
   async function handleDeleteDocumentForever(id: string) {
-    const confirmed = window.confirm("Borrar este PDF definitivamente tambien elimina sus anotaciones, conceptos y avance.");
+    const confirmed = window.confirm(
+      "Borrar este Markdown definitivamente tambien elimina sus anotaciones, conceptos y avance.",
+    );
     if (!confirmed) return;
 
     await deleteDocumentForever(id);
@@ -375,15 +452,15 @@ export default function App() {
     await refreshDocuments();
   }
 
-  async function handleNativeOpenPdf() {
-    const payload = await window.estudioPdf?.openPdfDialog();
+  async function handleNativeOpenMarkdown() {
+    const payload = await window.mdAutopsy?.openMarkdownDialog();
     if (!payload) return;
 
     const record = await saveDocumentData({
       name: payload.name,
       size: payload.size,
       lastModified: payload.lastModified,
-      data: payload.data,
+      content: payload.content,
     });
     await refreshDocuments();
     openRecord(record);
@@ -391,24 +468,42 @@ export default function App() {
 
   function handlePageChange(page: number) {
     if (!Number.isFinite(page)) return;
-    setCurrentPage(Math.min(Math.max(1, Math.round(page)), numPages || 1));
-    setSelection(null);
+    setCurrentPage(Math.min(Math.max(1, Math.round(page)), sectionCount || 1));
+    clearSelection();
+  }
+
+  function storeSelection(nextSelection: SelectionDraft | null) {
+    selectionRef.current = nextSelection;
+    setSelection(nextSelection);
   }
 
   function clearSelection() {
-    setSelection(null);
+    storeSelection(null);
     window.getSelection()?.removeAllRanges();
   }
 
   function handleToolChange(nextTool: ToolMode) {
+    const currentSelection = selectionRef.current;
+
     setTool(nextTool);
     setToolOptions(null);
-    clearSelection();
+
+    if (!currentSelection) {
+      window.getSelection()?.removeAllRanges();
+      return;
+    }
+
+    if (nextTool === "highlight") {
+      createAnnotationFromDraft(currentSelection);
+      return;
+    }
+
+    window.getSelection()?.removeAllRanges();
   }
 
   function handleViewerFullscreenChange(nextFullscreen: boolean) {
     applyViewerFullscreenState(nextFullscreen);
-    const fullscreenRequest = window.estudioPdf?.setNativeFullscreen?.(nextFullscreen);
+    const fullscreenRequest = window.mdAutopsy?.setNativeFullscreen?.(nextFullscreen);
     fullscreenRequest?.catch((error) => console.error("No se pudo cambiar el modo pantalla completa", error));
   }
 
@@ -427,6 +522,7 @@ export default function App() {
 
   function createAnnotationFromDraft(draft: SelectionDraft, note?: string) {
     if (!activeDocument) return;
+    pushUndo(note ? "Agregar nota" : "Resaltar texto");
     const timestamp = nowIso();
     const annotation: StudyAnnotation = {
       id: createId("annotation"),
@@ -436,32 +532,39 @@ export default function App() {
       type: note ? "note" : "highlight",
       color: activeColor,
       note,
-      rects: draft.rects,
+      anchor: draft.textAnchor,
       favorite: false,
       createdAt: timestamp,
       updatedAt: timestamp,
     };
 
-    setAnnotations((current) => [annotation, ...current]);
+    setAnnotations((current) => {
+      const nextAnnotations = [annotation, ...current];
+      annotationsRef.current = nextAnnotations;
+      return nextAnnotations;
+    });
     setActiveTab("annotations");
     clearSelection();
   }
 
   function createAnnotation(note?: string) {
-    if (!selection) return;
-    createAnnotationFromDraft(selection, note);
+    const currentSelection = selectionRef.current;
+    if (!currentSelection) return;
+    createAnnotationFromDraft(currentSelection, note);
   }
 
   function createTerm(termValue: string, definition: string) {
-    if (!selection || !activeDocument) return;
+    const currentSelection = selectionRef.current;
+    if (!currentSelection || !activeDocument) return;
     const normalized = normalizeTerm(termValue);
     if (!isTrackableNormalizedTerm(normalized)) return;
 
+    pushUndo("Guardar termino");
     const timestamp = nowIso();
     setTerms((current) => {
       const existing = current.find((term) => term.normalized === normalized);
       if (existing) {
-        return current.map((term) =>
+        const nextTerms = current.map((term) =>
           term.id === existing.id
             ? {
                 ...term,
@@ -469,12 +572,14 @@ export default function App() {
                 definition: definition || term.definition,
                 color: activeColor,
                 updatedAt: timestamp,
-              }
+            }
             : term,
         );
+        termsRef.current = nextTerms;
+        return nextTerms;
       }
 
-      return [
+      const nextTerms = [
         {
           id: createId("term"),
           documentId: activeDocument.id,
@@ -487,6 +592,8 @@ export default function App() {
         },
         ...current,
       ];
+      termsRef.current = nextTerms;
+      return nextTerms;
     });
 
     setActiveTab("terms");
@@ -494,29 +601,45 @@ export default function App() {
   }
 
   function deleteAnnotation(id: string) {
-    setAnnotations((current) => current.filter((annotation) => annotation.id !== id));
+    if (!annotationsRef.current.some((annotation) => annotation.id === id)) return;
+    pushUndo("Eliminar anotacion");
+    setAnnotations((current) => {
+      const nextAnnotations = current.filter((annotation) => annotation.id !== id);
+      annotationsRef.current = nextAnnotations;
+      return nextAnnotations;
+    });
   }
 
   function updateAnnotation(id: string, input: { note: string; color: HighlightColor }) {
     const note = input.note.trim();
+    if (!annotationsRef.current.some((annotation) => annotation.id === id)) return;
+    pushUndo("Editar anotacion");
 
-    setAnnotations((current) =>
-      current.map((annotation) =>
+    setAnnotations((current) => {
+      const nextAnnotations = current.map((annotation) =>
         annotation.id === id
           ? {
               ...annotation,
-              type: note ? "note" : "highlight",
+              type: note ? ("note" as const) : ("highlight" as const),
               note: note || undefined,
               color: input.color,
               updatedAt: nowIso(),
             }
           : annotation,
-      ),
-    );
+      );
+      annotationsRef.current = nextAnnotations;
+      return nextAnnotations;
+    });
   }
 
   function deleteTerm(id: string) {
-    setTerms((current) => current.filter((term) => term.id !== id));
+    if (!termsRef.current.some((term) => term.id === id)) return;
+    pushUndo("Eliminar termino");
+    setTerms((current) => {
+      const nextTerms = current.filter((term) => term.id !== id);
+      termsRef.current = nextTerms;
+      return nextTerms;
+    });
   }
 
   function updateTerm(id: string, input: { term: string; definition: string; color: HighlightColor }) {
@@ -527,12 +650,13 @@ export default function App() {
       return "El termino debe tener al menos 3 caracteres utiles.";
     }
 
-    if (terms.some((term) => term.id !== id && term.normalized === normalized)) {
+    if (termsRef.current.some((term) => term.id !== id && term.normalized === normalized)) {
       return "Ya existe un concepto con ese termino.";
     }
 
-    setTerms((current) =>
-      current.map((term) =>
+    pushUndo("Editar termino");
+    setTerms((current) => {
+      const nextTerms = current.map((term) =>
         term.id === id
           ? {
               ...term,
@@ -543,17 +667,21 @@ export default function App() {
               updatedAt: nowIso(),
             }
           : term,
-      ),
-    );
+      );
+      termsRef.current = nextTerms;
+      return nextTerms;
+    });
 
     return null;
   }
 
   function markTermReviewed(id: string, remembered: boolean) {
+    if (!termsRef.current.some((term) => term.id === id)) return;
+    pushUndo("Repasar termino");
     const timestamp = nowIso();
 
-    setTerms((current) =>
-      current.map((term) => {
+    setTerms((current) => {
+      const nextTerms = current.map((term) => {
         if (term.id !== id) return term;
 
         const previous = term.review ?? { attempts: 0, correct: 0, streak: 0 };
@@ -573,16 +701,22 @@ export default function App() {
           },
           updatedAt: timestamp,
         };
-      }),
-    );
+      });
+      termsRef.current = nextTerms;
+      return nextTerms;
+    });
   }
 
   function toggleFavorite(id: string) {
-    setAnnotations((current) =>
-      current.map((annotation) =>
+    if (!annotationsRef.current.some((annotation) => annotation.id === id)) return;
+    pushUndo("Marcar favorito");
+    setAnnotations((current) => {
+      const nextAnnotations = current.map((annotation) =>
         annotation.id === id ? { ...annotation, favorite: !annotation.favorite, updatedAt: nowIso() } : annotation,
-      ),
-    );
+      );
+      annotationsRef.current = nextAnnotations;
+      return nextAnnotations;
+    });
   }
 
   function addCustomColor(color: HighlightColor) {
@@ -590,14 +724,8 @@ export default function App() {
   }
 
   function handleSelectionDraft(draft: SelectionDraft | null) {
-    if (!draft) return;
-
-    if (tool === "select") {
-      setSelection(null);
-      return;
-    }
-
-    if (selection && (tool === "note" || tool === "term")) {
+    if (!draft) {
+      storeSelection(null);
       return;
     }
 
@@ -607,12 +735,19 @@ export default function App() {
       return;
     }
 
-    setSelection(draft);
+    storeSelection(draft);
   }
 
   function handleReadingProgress(progress: Omit<ReadingProgress, "documentId" | "updatedAt">) {
     if (!activeDocument) return;
     const stored = saveReadingProgress(activeDocument.id, progress);
+
+    const now = performance.now();
+    const lastUpdate = lastProgressStateUpdateRef.current;
+    const shouldUpdateState = stored.page !== lastUpdate.page || now - lastUpdate.timestamp > 2400;
+    if (!shouldUpdateState) return;
+
+    lastProgressStateUpdateRef.current = { page: stored.page, timestamp: now };
     setReadingProgress(stored);
   }
 
@@ -633,10 +768,10 @@ export default function App() {
         ref={uploadInputRef}
         className="sr-only"
         type="file"
-        accept="application/pdf"
+        accept=".md,.markdown,.txt,text/markdown,text/plain"
         onChange={(event) => {
           const file = event.target.files?.[0];
-          if (file) handleUpload(file);
+          if (file) void handleUpload(file);
           event.currentTarget.value = "";
         }}
       />
@@ -647,7 +782,7 @@ export default function App() {
         annotations={annotations}
         terms={terms}
         readingProgress={readingProgress}
-        pages={numPages}
+        pages={sectionCount}
         collapsed={isSidebarCollapsed}
         libraryView={libraryView}
         onLibraryViewChange={setLibraryView}
@@ -670,7 +805,7 @@ export default function App() {
             setToolOptions({ tool: selectedTool, anchor });
           }}
           page={currentPage}
-          pages={numPages}
+          pages={sectionCount}
           scale={scale}
           query={query}
           onQueryChange={setQuery}
@@ -683,12 +818,14 @@ export default function App() {
             setManualScale(false);
             setScale(getResponsiveScale());
           }}
+          canUndo={undoStack.length > 0}
+          onUndo={undoLastAction}
         />
-        <PdfWorkspace
-          pdfData={pdfData}
+        <MarkdownWorkspace
+          content={markdownContent}
           documentName={activeDocument?.name}
           page={currentPage}
-          pages={numPages}
+          pages={sectionCount}
           scale={scale}
           readingProgress={readingProgress}
           annotations={annotations}
@@ -699,9 +836,9 @@ export default function App() {
           onToolChange={handleToolChange}
           onViewerFullscreenChange={handleViewerFullscreenChange}
           onFullscreenStudyToggle={handleFullscreenStudyToggle}
-          onPagesLoaded={(pages) => {
-            setNumPages(pages);
-            setCurrentPage((page) => Math.min(page, pages));
+          onSectionsLoaded={(sections) => {
+            setSectionCount(sections);
+            setCurrentPage((page) => Math.min(page, sections));
           }}
           onPageChange={handlePageChange}
           onReadingProgress={handleReadingProgress}

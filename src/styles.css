@@ -613,40 +613,6 @@ button {
   font-weight: 520;
 }
 
-.pdf-scroll-region {
-  height: calc(100% - 42px);
-  overflow-x: hidden;
-  overflow-y: auto;
-  padding: 26px clamp(12px, 4vw, 56px) 48px;
-}
-
-.workspace.is-viewer-fullscreen .pdf-scroll-region {
-  height: 100%;
-  padding: 24px clamp(10px, 4vw, 64px) 78px;
-  scrollbar-color: rgba(255, 255, 255, 0.34) transparent;
-}
-
-.pdf-pages-stack {
-  display: grid;
-  justify-items: center;
-  gap: 28px;
-  width: 100%;
-  min-width: 0;
-}
-
-.pdf-page-shell {
-  position: relative;
-  width: fit-content;
-  max-width: 100%;
-  scroll-margin-top: 18px;
-  background: #ffffff;
-  box-shadow: 0 1px 2px rgba(17, 24, 28, 0.1), 0 18px 48px rgba(17, 24, 28, 0.18);
-}
-
-.workspace.is-viewer-fullscreen .pdf-page-shell {
-  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.28), 0 24px 70px rgba(0, 0, 0, 0.36);
-}
-
 .viewer-fullscreen-toggle {
   position: absolute;
   right: 18px;
@@ -746,51 +712,28 @@ button {
   background: var(--border);
 }
 
-.react-pdf__Document {
-  width: 100%;
-}
-
-.react-pdf__Page {
-  max-width: 100%;
-}
-
-.react-pdf__Page {
-  background: #ffffff;
-}
-
-.react-pdf__Page canvas {
-  display: block;
-}
-
-.react-pdf__Page__textContent {
-  cursor: text;
-}
-
-.react-pdf__Page__textContent span::selection {
-  background: rgba(8, 124, 120, 0.28);
-}
-
 .highlight-layer {
   position: absolute;
   inset: 0;
   pointer-events: none;
   z-index: 1;
   contain: paint;
+  isolation: isolate;
 }
 
 .term-hit-layer {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  z-index: 3;
+  z-index: 4;
   contain: paint;
-  transform: translateZ(0);
+  isolation: isolate;
 }
 
 .highlight-rect {
   position: absolute;
   border-radius: 3px;
-  mix-blend-mode: multiply;
+  mix-blend-mode: normal;
   opacity: 1;
 }
 
@@ -818,7 +761,7 @@ button {
   position: absolute;
   border-radius: 3px;
   box-shadow: inset 0 -0.2em 0 var(--concept-underline, rgba(8, 124, 120, 0.34));
-  mix-blend-mode: multiply;
+  mix-blend-mode: normal;
   opacity: 1;
   backface-visibility: hidden;
 }
@@ -1515,23 +1458,14 @@ button {
   background: #070b0d;
 }
 
-.theme-dark .pdf-page-shell,
-.theme-dark .react-pdf__Page {
-  background: #050708 !important;
+.theme-dark .highlight-rect {
+  mix-blend-mode: normal;
+  opacity: 0.72;
 }
 
-.theme-dark .react-pdf__Page canvas {
-  filter: invert(1) hue-rotate(180deg);
-}
-
-.theme-dark .react-pdf__Page__textContent span::selection {
-  background: rgba(54, 200, 188, 0.32);
-}
-
-.theme-dark .highlight-rect,
 .theme-dark .term-hit-rect {
-  mix-blend-mode: screen;
-  opacity: 0.86;
+  mix-blend-mode: normal;
+  opacity: 1;
 }
 
 .theme-dark .annotation-text,
@@ -1702,10 +1636,6 @@ button {
     max-width: 180px;
   }
 
-  .pdf-scroll-region {
-    padding-right: 18px;
-    padding-left: 18px;
-  }
 }
 
 @media (max-width: 1120px) {
@@ -1719,10 +1649,6 @@ button {
     display: none;
   }
 
-  .pdf-scroll-region {
-    padding-right: 12px;
-    padding-left: 12px;
-  }
 }
 
 @media (max-width: 1500px) and (min-width: 901px) {
@@ -1786,14 +1712,6 @@ button {
   .zoom-group .icon-button:last-child,
   .page-group span {
     display: none;
-  }
-
-  .pdf-scroll-region {
-    padding: 18px 4px 30px;
-  }
-
-  .pdf-page-shell {
-    min-width: 0;
   }
 
   .selection-popover,
@@ -2301,22 +2219,6 @@ body {
   font-size: 11px;
 }
 
-.pdf-scroll-region {
-  padding: 26px clamp(16px, 4vw, 56px) 50px;
-}
-
-.pdf-page-shell {
-  overflow: hidden;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  background: #ffffff;
-  box-shadow: var(--shadow-page);
-}
-
-.react-pdf__Page {
-  background: #ffffff;
-}
-
 .highlight-rect,
 .term-hit-rect {
   border-radius: var(--radius-xs);
@@ -2721,16 +2623,6 @@ body {
   background: #020809;
 }
 
-.theme-dark .pdf-page-shell,
-.theme-dark .react-pdf__Page {
-  border-color: var(--border);
-  background: #071012 !important;
-}
-
-.theme-dark .react-pdf__Page canvas {
-  filter: invert(1) hue-rotate(180deg) contrast(0.92) brightness(0.9);
-}
-
 .theme-dark .annotation-text,
 .theme-dark .flash-card p {
   color: var(--charcoal);
@@ -2826,9 +2718,6 @@ body {
     border-left: 1px solid var(--border);
   }
 
-  .pdf-scroll-region {
-    padding-inline: 8px;
-  }
 }
 
 @media (max-width: 900px) {
@@ -2873,10 +2762,6 @@ body {
     min-height: 40px;
   }
 
-  .pdf-scroll-region {
-    padding: 18px 6px 32px;
-  }
-
   .panel-tabs {
     padding: 0 10px;
   }
@@ -2902,5 +2787,236 @@ body {
 
   .fullscreen-tool-button span {
     display: none;
+  }
+}
+
+.markdown-scroll-region {
+  height: calc(100% - 42px);
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 28px clamp(16px, 5vw, 72px) 56px;
+}
+
+.workspace.is-viewer-fullscreen .markdown-scroll-region {
+  height: 100%;
+  padding: 28px clamp(16px, 6vw, 92px) 78px;
+  scrollbar-color: rgba(255, 255, 255, 0.34) transparent;
+}
+
+.markdown-document {
+  width: min(100%, 860px);
+  margin: 0 auto;
+  padding: clamp(28px, 5vw, 56px);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--canvas, var(--surface));
+  box-shadow: var(--shadow-page, var(--shadow-sm));
+  color: var(--text);
+  font-size: calc(16px * var(--markdown-scale, 1));
+  line-height: 1.65;
+}
+
+.workspace.is-viewer-fullscreen .markdown-document {
+  min-height: calc(100vh - 56px);
+  box-shadow: none;
+}
+
+.markdown-block {
+  scroll-margin-top: 78px;
+}
+
+.markdown-block + .markdown-block {
+  margin-top: 1.15em;
+}
+
+.markdown-document h1,
+.markdown-document h2,
+.markdown-document h3,
+.markdown-document h4,
+.markdown-document h5,
+.markdown-document h6 {
+  color: var(--text);
+  font-weight: 650;
+  letter-spacing: 0;
+  line-height: 1.2;
+}
+
+.markdown-document h1 {
+  margin: 0 0 0.55em;
+  font-size: 2.25em;
+}
+
+.markdown-document h2 {
+  margin: 1.45em 0 0.65em;
+  padding-top: 0.35em;
+  border-top: 1px solid var(--border);
+  font-size: 1.55em;
+}
+
+.markdown-document h3 {
+  margin: 1.2em 0 0.55em;
+  font-size: 1.25em;
+}
+
+.markdown-document p,
+.markdown-document ul,
+.markdown-document ol,
+.markdown-document blockquote,
+.markdown-document pre,
+.markdown-document .markdown-table-wrap {
+  margin: 0;
+}
+
+.markdown-document ul,
+.markdown-document ol {
+  padding-left: 1.45em;
+}
+
+.markdown-document li + li {
+  margin-top: 0.35em;
+}
+
+.markdown-document blockquote {
+  padding: 0.85em 1em;
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius-md);
+  background: var(--surface-muted);
+  color: var(--charcoal);
+}
+
+.markdown-document code,
+.markdown-document pre {
+  font-family: "Geist Mono", "SF Mono", Menlo, Consolas, monospace;
+}
+
+.markdown-document :not(pre) > code {
+  padding: 0.12em 0.36em;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xs);
+  background: var(--surface-muted);
+  color: var(--charcoal);
+  font-size: 0.88em;
+  font-weight: 500;
+}
+
+.markdown-document pre {
+  overflow: auto;
+  padding: 1em;
+  border-radius: var(--radius-md);
+  background: #0b1115;
+  color: #f4fbfa;
+  font-size: 0.88em;
+  line-height: 1.55;
+}
+
+.markdown-document pre code {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-size: inherit;
+}
+
+.markdown-document a {
+  color: var(--accent-ink);
+  font-weight: 500;
+  text-decoration-color: color-mix(in srgb, var(--accent) 42%, transparent);
+  text-underline-offset: 3px;
+}
+
+.markdown-document .markdown-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.markdown-document table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9em;
+}
+
+.markdown-document th,
+.markdown-document td {
+  padding: 0.72em 0.9em;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+}
+
+.markdown-document tr:last-child td {
+  border-bottom: 0;
+}
+
+.markdown-document th {
+  background: var(--surface-muted);
+  color: var(--steel);
+  font-size: 0.78em;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.markdown-document .katex-display {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0.35em 0;
+}
+
+.markdown-document ::selection {
+  background: color-mix(in srgb, var(--accent) 24%, transparent);
+}
+
+.study-mark {
+  border-radius: var(--radius-xs);
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
+.annotation-mark {
+  padding: 0.02em 0.08em;
+}
+
+.term-mark {
+  position: relative;
+  z-index: 1;
+  padding: 0.02em 0.08em;
+  box-shadow: inset 0 -0.22em 0 var(--concept-underline, rgba(0, 212, 164, 0.55));
+}
+
+.theme-dark .markdown-document {
+  background: #050b0d;
+  color: var(--text);
+}
+
+.theme-dark .markdown-document blockquote,
+.theme-dark .markdown-document :not(pre) > code,
+.theme-dark .markdown-document th {
+  background: var(--surface-soft);
+}
+
+.theme-dark .markdown-document pre {
+  border: 1px solid var(--border);
+  background: #020608;
+}
+
+@media (max-width: 900px) {
+  .markdown-scroll-region {
+    padding: 18px clamp(10px, 4vw, 28px) 34px;
+  }
+
+  .markdown-document {
+    padding: clamp(20px, 5vw, 34px);
+  }
+}
+
+@media (max-width: 620px) {
+  .markdown-scroll-region {
+    padding: 12px 8px 28px;
+  }
+
+  .markdown-document {
+    border-radius: var(--radius-md);
+    font-size: calc(15px * var(--markdown-scale, 1));
   }
 }

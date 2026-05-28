@@ -85,14 +85,14 @@ export function Sidebar({
         <button className="icon-button panel-toggle" type="button" onClick={onToggleCollapsed} title="Expandir biblioteca">
           <ChevronRight size={18} />
         </button>
-        <div className="brand-mark collapsed-brand" title="pdfAutopsy">
+        <div className="brand-mark collapsed-brand" title="mdAutopsy">
           <BookOpen size={19} />
         </div>
-        <label className="icon-button file-trigger collapsed-upload" title="Agregar PDF">
+        <label className="icon-button file-trigger collapsed-upload" title="Agregar Markdown">
           <Plus size={17} />
           <input
             type="file"
-            accept="application/pdf"
+            accept=".md,.markdown,.txt,text/markdown,text/plain"
             onChange={(event) => {
               const file = event.target.files?.[0];
               if (file) onUpload(file);
@@ -110,7 +110,7 @@ export function Sidebar({
         <div className="brand-mark">
           <BookOpen size={20} />
         </div>
-        <span>pdfAutopsy</span>
+        <span>mdAutopsy</span>
         <button className="icon-button panel-toggle" type="button" onClick={onToggleCollapsed} title="Colapsar biblioteca">
           <ChevronLeft size={18} />
         </button>
@@ -119,11 +119,11 @@ export function Sidebar({
       <section className="sidebar-section">
         <div className="section-heading">
           <h2>Biblioteca</h2>
-          <label className="icon-button file-trigger" title="Agregar PDF">
+          <label className="icon-button file-trigger" title="Agregar Markdown">
             <Plus size={17} />
             <input
               type="file"
-              accept="application/pdf"
+              accept=".md,.markdown,.txt,text/markdown,text/plain"
               onChange={(event) => {
                 const file = event.target.files?.[0];
                 if (file) onUpload(file);
@@ -211,7 +211,7 @@ export function Sidebar({
               <dd>{progress}%</dd>
             </div>
             <div>
-              <dt>Pagina actual</dt>
+              <dt>Seccion actual</dt>
               <dd>{Math.min(currentPage, pages || 1)} de {pages || 1}</dd>
             </div>
             <div>
@@ -275,7 +275,7 @@ function DocumentItem({
         disabled={isDeleted}
         type="button"
         onClick={() => onOpen(document.id)}
-        title={isDeleted ? "Restaura el PDF para abrirlo" : document.name}
+        title={isDeleted ? "Restaura el Markdown para abrirlo" : document.name}
       >
         <FileText size={16} />
         <span>{document.name}</span>
@@ -284,7 +284,7 @@ function DocumentItem({
       <div className="document-actions">
         {isDeleted ? (
           <>
-            <button className="icon-button" type="button" onClick={() => onRestore(document.id)} title="Restaurar PDF">
+            <button className="icon-button" type="button" onClick={() => onRestore(document.id)} title="Restaurar Markdown">
               <RotateCcw size={15} />
             </button>
             <button
@@ -302,7 +302,7 @@ function DocumentItem({
               className={`icon-button ${document.favorite ? "is-active" : ""}`}
               type="button"
               onClick={() => onToggleFavorite(document.id)}
-              title={document.favorite ? "Quitar PDF favorito" : "Marcar PDF favorito"}
+              title={document.favorite ? "Quitar Markdown favorito" : "Marcar Markdown favorito"}
             >
               <Star size={15} />
             </button>

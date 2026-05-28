@@ -39,6 +39,13 @@ export function SelectionPopover({
     }
   }, [mode]);
 
+  useEffect(() => {
+    setMode(initialMode);
+    setNote("");
+    setTerm(selection.text);
+    setDefinition("");
+  }, [initialMode, selection.page, selection.text]);
+
   const estimatedHeight = mode === "term" ? 282 : mode === "note" ? 236 : 260;
   const preferredTop = mode === "quick" ? selection.anchor.y + 18 : selection.anchor.y - estimatedHeight - 12;
   const style = {

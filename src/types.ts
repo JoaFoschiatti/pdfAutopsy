@@ -2,11 +2,13 @@ export type HighlightColor = string;
 
 export type AnnotationType = "highlight" | "note";
 
-export type HighlightRect = {
-  left: number;
-  top: number;
-  width: number;
-  height: number;
+export type TextAnchor = {
+  blockId: string;
+  start: number;
+  end: number;
+  quote: string;
+  prefix?: string;
+  suffix?: string;
 };
 
 export type StudyAnnotation = {
@@ -17,7 +19,7 @@ export type StudyAnnotation = {
   type: AnnotationType;
   color: HighlightColor;
   note?: string;
-  rects: HighlightRect[];
+  anchor: TextAnchor;
   favorite: boolean;
   createdAt: string;
   updatedAt: string;
@@ -54,8 +56,8 @@ export type StoredDocument = {
 
 export type LibraryView = "all" | "recent" | "favorites" | "trash";
 
-export type PdfDocumentRecord = StoredDocument & {
-  data: ArrayBuffer;
+export type MarkdownDocumentRecord = StoredDocument & {
+  content: string;
 };
 
 export type ReadingProgress = {
@@ -69,7 +71,7 @@ export type ReadingProgress = {
 export type SelectionDraft = {
   text: string;
   page: number;
-  rects: HighlightRect[];
+  textAnchor: TextAnchor;
   anchor: {
     x: number;
     y: number;

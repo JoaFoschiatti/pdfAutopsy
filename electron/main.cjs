@@ -7,7 +7,7 @@ const isDev = Boolean(process.env.VITE_DEV_SERVER_URL);
 let mainWindow = null;
 let hasScheduledUpdateCheck = false;
 
-app.setAppUserModelId("com.pdfautopsy.app");
+app.setAppUserModelId("com.mdautopsy.app");
 
 function scheduleAutoUpdateCheck() {
   if (isDev || process.env.ELECTRON_SMOKE_TEST === "1" || hasScheduledUpdateCheck) return;
@@ -29,7 +29,7 @@ function scheduleAutoUpdateCheck() {
       defaultId: 0,
       cancelId: 1,
       title: "Actualizacion lista",
-      message: `pdfAutopsy ${info.version} ya esta descargado.`,
+      message: `mdAutopsy ${info.version} ya esta descargado.`,
       detail: "Reinicia la app para instalar la actualizacion ahora o se instalara al cerrar.",
     });
 
@@ -45,7 +45,7 @@ function scheduleAutoUpdateCheck() {
 
 function createMainWindow() {
   mainWindow = new BrowserWindow({
-    title: "pdfAutopsy",
+    title: "mdAutopsy",
     width: 1365,
     height: 768,
     minWidth: 960,
@@ -76,7 +76,7 @@ function createMainWindow() {
   mainWindow.webContents.on("before-input-event", (event, input) => {
     if ((input.control || input.meta) && input.key.toLowerCase() === "o") {
       event.preventDefault();
-      mainWindow?.webContents.send("menu:open-pdf");
+      mainWindow?.webContents.send("menu:open-markdown");
     }
   });
 
@@ -97,7 +97,7 @@ function createMainWindow() {
         const state = await mainWindow.webContents.executeJavaScript(`({
           title: document.title,
           hasAppShell: Boolean(document.querySelector('.app-shell')),
-          hasDocument: Boolean(document.querySelector('.react-pdf__Page') || document.querySelector('.empty-document')),
+          hasDocument: Boolean(document.querySelector('.markdown-document') || document.querySelector('.empty-document')),
           hasStudyPanel: Boolean(document.querySelector('.study-panel')),
           url: location.href
         })`);
@@ -119,26 +119,25 @@ function createMainWindow() {
   }
 }
 
-ipcMain.handle("dialog:open-pdf", async () => {
+ipcMain.handle("dialog:open-markdown", async () => {
   if (!mainWindow) return null;
 
   const result = await dialog.showOpenDialog(mainWindow, {
-    title: "Abrir PDF",
+    title: "Abrir Markdown",
     properties: ["openFile"],
-    filters: [{ name: "PDF", extensions: ["pdf"] }],
+    filters: [{ name: "Markdown", extensions: ["md", "markdown", "txt"] }],
   });
 
   if (result.canceled || result.filePaths.length === 0) return null;
 
   const filePath = result.filePaths[0];
-  const [data, stats] = await Promise.all([fs.readFile(filePath), fs.stat(filePath)]);
-  const arrayBuffer = data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength);
+  const [content, stats] = await Promise.all([fs.readFile(filePath, "utf8"), fs.stat(filePath)]);
 
   return {
     name: path.basename(filePath),
     size: stats.size,
     lastModified: stats.mtimeMs,
-    data: arrayBuffer,
+    content,
   };
 });
 

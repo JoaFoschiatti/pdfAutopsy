@@ -1,6 +1,8 @@
-# pdfAutopsy
+# mdAutopsy
 
-Lector de PDF nativo para Windows 11 orientado a estudio: resaltados, notas, conceptos recurrentes, repasos y modo de lectura fullscreen.
+Lector de Markdown orientado a estudio: resaltados, notas, conceptos recurrentes, repasos y modo de lectura fullscreen.
+
+Soporta Markdown GFM y formulas LaTeX con KaTeX (`$...$` y `$$...$$`). La app no ejecuta HTML embebido ni MDX.
 
 ## Desarrollo
 

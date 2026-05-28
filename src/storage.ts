@@ -1,12 +1,12 @@
-import type { PdfDocumentRecord, ReadingProgress, StoredDocument, StudyAnnotation, TermNote } from "./types";
+import type { MarkdownDocumentRecord, ReadingProgress, StoredDocument, StudyAnnotation, TermNote } from "./types";
 
-const DB_NAME = "estudio-pdf-db";
+const DB_NAME = "md-autopsy-db";
 const DB_VERSION = 1;
 const DOCUMENT_STORE = "documents";
 
-const ANNOTATIONS_KEY = "estudio-pdf-annotations-v1";
-const TERMS_KEY = "estudio-pdf-terms-v1";
-const READING_PROGRESS_KEY = "estudio-pdf-reading-progress-v1";
+const ANNOTATIONS_KEY = "md-autopsy-annotations-v1";
+const TERMS_KEY = "md-autopsy-terms-v1";
+const READING_PROGRESS_KEY = "md-autopsy-reading-progress-v1";
 
 type ListDocumentsOptions = {
   includeDeleted?: boolean;
@@ -42,7 +42,7 @@ function writeLocalStorage<T>(key: string, value: T) {
   localStorage.setItem(key, JSON.stringify(value));
 }
 
-async function putDocumentRecord(record: PdfDocumentRecord) {
+async function putDocumentRecord(record: MarkdownDocumentRecord) {
   const db = await openDatabase();
   await new Promise<void>((resolve, reject) => {
     const transaction = db.transaction(DOCUMENT_STORE, "readwrite");
@@ -69,8 +69,8 @@ export async function listDocuments(options: ListDocumentsOptions = {}): Promise
 
     request.onerror = () => reject(request.error);
     request.onsuccess = () => {
-      const docs = (request.result as PdfDocumentRecord[])
-        .map(({ data: _data, ...metadata }) => metadata)
+      const docs = (request.result as MarkdownDocumentRecord[])
+        .map(({ content: _content, ...metadata }) => metadata)
         .filter((doc) => {
           if (options.deletedOnly) return Boolean(doc.deletedAt);
           if (options.includeDeleted) return true;
@@ -87,7 +87,7 @@ export async function listDocuments(options: ListDocumentsOptions = {}): Promise
   });
 }
 
-export async function getDocument(id: string): Promise<PdfDocumentRecord | undefined> {
+export async function getDocument(id: string): Promise<MarkdownDocumentRecord | undefined> {
   const db = await openDatabase();
   return new Promise((resolve, reject) => {
     const transaction = db.transaction(DOCUMENT_STORE, "readonly");
@@ -95,21 +95,21 @@ export async function getDocument(id: string): Promise<PdfDocumentRecord | undef
     const request = store.get(id);
 
     request.onerror = () => reject(request.error);
-    request.onsuccess = () => resolve(request.result as PdfDocumentRecord | undefined);
+    request.onsuccess = () => resolve(request.result as MarkdownDocumentRecord | undefined);
   });
 }
 
-export async function saveDocument(file: File): Promise<PdfDocumentRecord> {
+export async function saveDocument(file: File): Promise<MarkdownDocumentRecord> {
   const id = `${file.name}-${file.size}-${file.lastModified}`;
-  const data = await file.arrayBuffer();
-  const record: PdfDocumentRecord = {
+  const content = await file.text();
+  const record: MarkdownDocumentRecord = {
     id,
     name: file.name,
     size: file.size,
     lastModified: file.lastModified,
     addedAt: new Date().toISOString(),
     lastOpenedAt: new Date().toISOString(),
-    data,
+    content,
   };
 
   await putDocumentRecord(record);
@@ -117,20 +117,20 @@ export async function saveDocument(file: File): Promise<PdfDocumentRecord> {
   return record;
 }
 
-export async function upsertDemoDocument(): Promise<PdfDocumentRecord> {
-  const existing = await getDocument("demo-neurociencia");
+export async function upsertDemoMarkdown(): Promise<MarkdownDocumentRecord> {
+  const existing = await getDocument("demo-md-autopsy");
   if (existing) return existing;
 
-  const response = await fetch(`${import.meta.env.BASE_URL}demo-neurociencia.pdf`);
-  const data = await response.arrayBuffer();
-  const record: PdfDocumentRecord = {
-    id: "demo-neurociencia",
-    name: "Neurociencia cognitiva.pdf",
-    size: data.byteLength,
+  const response = await fetch(`${import.meta.env.BASE_URL}demo-estudio.md`);
+  const content = await response.text();
+  const record: MarkdownDocumentRecord = {
+    id: "demo-md-autopsy",
+    name: "Guia de estudio forense.md",
+    size: new Blob([content]).size,
     lastModified: Date.now(),
     addedAt: new Date().toISOString(),
     lastOpenedAt: new Date().toISOString(),
-    data,
+    content,
   };
 
   await putDocumentRecord(record);
@@ -237,17 +237,17 @@ export async function saveDocumentData(input: {
   name: string;
   size: number;
   lastModified: number;
-  data: ArrayBuffer;
-}): Promise<PdfDocumentRecord> {
+  content: string;
+}): Promise<MarkdownDocumentRecord> {
   const id = input.id ?? `${input.name}-${input.size}-${input.lastModified}`;
-  const record: PdfDocumentRecord = {
+  const record: MarkdownDocumentRecord = {
     id,
     name: input.name,
     size: input.size,
     lastModified: input.lastModified,
     addedAt: new Date().toISOString(),
     lastOpenedAt: new Date().toISOString(),
-    data: input.data,
+    content: input.content,
   };
 
   await putDocumentRecord(record);

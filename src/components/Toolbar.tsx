@@ -7,6 +7,7 @@ import {
   RotateCcw,
   Search,
   Tag,
+  Undo2,
   ZoomIn,
   ZoomOut,
 } from "lucide-react";
@@ -26,6 +27,8 @@ type ToolbarProps = {
   onPageChange: (page: number) => void;
   onScaleChange: (scale: number) => void;
   onResetView: () => void;
+  canUndo: boolean;
+  onUndo: () => void;
 };
 
 const tools = [
@@ -47,6 +50,8 @@ export function Toolbar({
   onPageChange,
   onScaleChange,
   onResetView,
+  canUndo,
+  onUndo,
 }: ToolbarProps) {
   const clampedScale = Math.round(scale * 100);
 
@@ -79,6 +84,19 @@ export function Toolbar({
 
       <div className="toolbar-separator" />
 
+      <div className="toolbar-group undo-group" aria-label="Historial">
+        <button
+          className="icon-button"
+          type="button"
+          onClick={onUndo}
+          disabled={!canUndo}
+          title="Deshacer ultima accion (Ctrl+Z)"
+          aria-label="Deshacer ultima accion"
+        >
+          <Undo2 size={18} />
+        </button>
+      </div>
+
       <div className="toolbar-group search-group">
         <Search size={18} />
         <input
@@ -89,20 +107,20 @@ export function Toolbar({
         />
       </div>
 
-      <div className="toolbar-group page-group" aria-label="Navegacion de paginas">
+      <div className="toolbar-group page-group" aria-label="Navegacion de secciones">
         <button
           className="icon-button"
           type="button"
           onClick={() => onPageChange(page - 1)}
           disabled={page <= 1}
-          title="Pagina anterior"
+          title="Seccion anterior"
         >
           <ChevronLeft size={18} />
         </button>
-        <span>Pagina</span>
+        <span>Seccion</span>
         <input
           className="page-input"
-          aria-label="Pagina actual"
+          aria-label="Seccion actual"
           type="number"
           min={1}
           max={pages || 1}
@@ -115,7 +133,7 @@ export function Toolbar({
           type="button"
           onClick={() => onPageChange(page + 1)}
           disabled={!pages || page >= pages}
-          title="Pagina siguiente"
+          title="Seccion siguiente"
         >
           <ChevronRight size={18} />
         </button>

@@ -2,7 +2,7 @@ import { Check, Plus, X } from "lucide-react";
 import { useState } from "react";
 import { colorToCss, DEFAULT_COLORS, normalizeHexColor } from "../colors";
 import type { HighlightColor } from "../types";
-import type { ToolMode } from "./PdfWorkspace";
+import type { ToolMode } from "./MarkdownWorkspace";
 
 type ToolOptionsPopoverProps = {
   tool: ToolMode;
@@ -102,7 +102,7 @@ export function ToolOptionsPopover({
           {error && <span className="field-error">{error}</span>}
         </>
       ) : (
-        <div className="select-mode-note">Seleccionar no modifica el PDF.</div>
+        <div className="select-mode-note">Seleccionar no modifica el Markdown.</div>
       )}
     </div>
   );

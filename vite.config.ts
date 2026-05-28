@@ -5,13 +5,13 @@ export default defineConfig({
   base: "./",
   plugins: [react()],
   optimizeDeps: {
-    include: ["pdfjs-dist", "react-pdf"],
+    include: ["react-markdown", "remark-gfm", "remark-math", "rehype-katex", "katex"],
   },
   build: {
     rollupOptions: {
       output: {
         manualChunks: {
-          pdf: ["pdfjs-dist", "react-pdf"],
+          markdown: ["react-markdown", "remark-gfm", "remark-math", "rehype-katex", "katex"],
           react: ["react", "react-dom"],
           icons: ["lucide-react"],
         },

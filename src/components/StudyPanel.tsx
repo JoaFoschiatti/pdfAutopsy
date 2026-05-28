@@ -85,7 +85,7 @@ export function StudyPanel({
     if (!normalizedQuery) return true;
     return `${term.term} ${term.definition}`.toLocaleLowerCase("es").includes(normalizedQuery);
   });
-  const annotationsOnPage = visibleAnnotations.filter((annotation) => annotation.page === currentPage);
+  const annotationsOnSection = visibleAnnotations.filter((annotation) => annotation.page === currentPage);
   const reviewTerms = useMemo(() => sortTermsForReview(visibleTerms), [visibleTerms]);
   const dueReviewTerms = reviewTerms.filter(isDueForReview);
   const reviewDeck = dueReviewTerms.length ? dueReviewTerms : reviewTerms;
@@ -165,17 +165,17 @@ export function StudyPanel({
             <Search size={17} />
             <MoreHorizontal size={18} />
           </div>
-          <h3>Pagina {currentPage}</h3>
+          <h3>Seccion {currentPage}</h3>
           <AnnotationList
-            annotations={annotationsOnPage}
+            annotations={annotationsOnSection}
             customColors={customColors}
-            emptyLabel="No hay anotaciones en esta pagina."
+            emptyLabel="No hay anotaciones en esta seccion."
             onPageJump={onPageJump}
             onDelete={onDeleteAnnotation}
             onUpdate={onUpdateAnnotation}
             onToggleFavorite={onToggleFavorite}
           />
-          {visibleAnnotations.length > annotationsOnPage.length && (
+          {visibleAnnotations.length > annotationsOnSection.length && (
             <>
               <h3>Todas las anotaciones</h3>
               <AnnotationList
@@ -198,7 +198,7 @@ export function StudyPanel({
             <Tag size={18} />
             <div>
               <strong>{visibleTerms.length} conceptos definidos</strong>
-              <span>Se remarcan cuando vuelven a aparecer en el PDF.</span>
+              <span>Se remarcan cuando vuelven a aparecer en el documento.</span>
             </div>
           </div>
           <div className="term-list">
@@ -388,7 +388,7 @@ function EditableAnnotationCard({
       <div className="annotation-meta">
         {annotation.type === "note" ? <MessageSquare size={16} /> : <ExternalLink size={16} />}
         <span>{annotation.type === "note" ? "Nota" : "Resaltado"}</span>
-        <span>Pagina {annotation.page}</span>
+        <span>Seccion {annotation.page}</span>
       </div>
 
       {isEditing ? (

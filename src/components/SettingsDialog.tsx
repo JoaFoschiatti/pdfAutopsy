@@ -35,7 +35,7 @@ export function SettingsDialog({ theme, onThemeChange, onClose }: SettingsDialog
             {isDark ? <Moon size={20} /> : <Sun size={20} />}
             <div>
               <strong>Tema oscuro</strong>
-              <span>Invierte el PDF para leer con fondo oscuro y texto claro.</span>
+              <span>Usa superficies oscuras para leer Markdown con menos brillo.</span>
             </div>
           </div>
           <button
